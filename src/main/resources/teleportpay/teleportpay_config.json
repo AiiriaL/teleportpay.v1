@@ -1,0 +1,10 @@
+{
+  "enableTeleportPay": true,
+  "costPerDistance": {
+    "100": 1,
+    "500": 3,
+    "1000": 5,
+    "max": 10
+  },
+  "cooldownInSeconds": 60
+}
