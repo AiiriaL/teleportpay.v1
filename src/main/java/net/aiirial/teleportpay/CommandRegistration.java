@@ -5,7 +5,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
-@EventBusSubscriber(modid = TeleportPay.MOD_ID)
+@EventBusSubscriber(modid = TeleportPay.MODID)
 public class CommandRegistration {
 
     @SubscribeEvent

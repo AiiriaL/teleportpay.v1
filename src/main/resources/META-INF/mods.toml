@@ -1,9 +1,16 @@
 modLoader="neoforge"
 loaderVersion="[2,)"
-license="All Rights Reserved"
+license="MIT"
 
 [[mods]]
 modId="teleportpay"
 version="1.0.0"
 displayName="TeleportPay"
 description='''Teleportiere dich zu Koordinaten gegen Diamantkosten!'''
+
+[[dependencies.teleportpay]]
+modId="neoforge"
+type="required"
+versionRange="[2,)"
+ordering="NONE"
+side="BOTH"
