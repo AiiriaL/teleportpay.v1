@@ -1,24 +1,31 @@
 package net.aiirial.teleportpay;
 
-import com.mojang.brigadier.CommandDispatcher;
-import net.minecraft.commands.CommandSourceStack;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
-// import net.neoforged.neoforge.event.server.RegisterCommandsEvent;
+import net.neoforged.neoforge.common.NeoForge;
 
-@Mod(TeleportPay.MODID)
+@Mod(TeleportPay.MOD_ID)
 public class TeleportPay {
-    public static final String MODID = "teleportpay";
 
-    public TeleportPay() {
-        // Mod-Initialisierung (z.B. Config laden etc.)
+    public static final String MOD_ID = "teleportpay";
+    public static TeleportPayConfigData CONFIG;
+
+    public TeleportPay(IEventBus modEventBus) {
+        modEventBus.addListener(this::onCommonSetup);
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+
+        // Konfigurationsdatei laden
+        CONFIG = TeleportPayConfig.loadConfig();
     }
 
-    @SubscribeEvent
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
-        TeleportCommand.register(dispatcher);
+    private void onCommonSetup(FMLCommonSetupEvent event) {
+        // Setup falls später benötigt
+    }
+
+    private void onRegisterCommands(RegisterCommandsEvent event) {
+        TeleportCommand.register(event);
     }
 }

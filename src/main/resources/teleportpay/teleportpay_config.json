@@ -1,16 +1,8 @@
 {
-  "tiers": {
-    "1000": {
-      "cost": 1,
-      "cooldown": 60
-    },
-    "2500": {
-      "cost": 10,
-      "cooldown": 300
-    },
-    "max": {
-      "cost": 25,
-      "cooldown": 900
-    }
-  }
+  "costTier1": 1,
+  "costTier2": 10,
+  "costTier3": 25,
+  "cooldownTier1": 60,
+  "cooldownTier2": 300,
+  "cooldownTier3": 900
 }

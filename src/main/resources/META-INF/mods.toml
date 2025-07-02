@@ -1,16 +1,20 @@
 modLoader="neoforge"
-loaderVersion="[2,)"
+loaderVersion="[2,)" # Akzeptiert alle NeoForge-Versionen ab 2.x.x
+
 license="MIT"
 
 [[mods]]
 modId="teleportpay"
 version="1.0.0"
 displayName="TeleportPay"
-description='''Teleportiere dich zu Koordinaten gegen Diamantkosten!'''
+description='''A teleportation command that costs diamonds based on distance, with configurable tiers and cooldowns.'''
+
+# (Optional) Logo-Datei
+# logoFile="assets/teleportpay/logo.png"
 
 [[dependencies.teleportpay]]
 modId="neoforge"
 type="required"
-versionRange="[2,)"
+versionRange="[20.3.0,)"
 ordering="NONE"
 side="BOTH"
