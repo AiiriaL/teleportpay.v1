@@ -1,34 +1,87 @@
 package net.aiirial.teleportpay;
 
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.IEventBus;
+import com.mojang.logging.LogUtils;
+import net.aiirial.teleportpay.command.TeleportPayCommand;
+import net.aiirial.teleportpay.command.TpConfirmCommand;
+import net.aiirial.teleportpay.command.TeleportPayConfigCommand;
+import net.aiirial.teleportpay.config.TeleportPayConfigData;
+import net.aiirial.teleportpay.util.ConfigUtil;
+import net.minecraft.commands.Commands;
+import net.minecraft.server.MinecraftServer;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import org.slf4j.Logger;
 
-@Mod(TeleportPay.MOD_ID)
+import java.io.File;
+
+@Mod(TeleportPay.MODID)
 public class TeleportPay {
 
-    public static final String MOD_ID = "teleportpay";
-    public static TeleportPayConfigData CONFIG;
+    public static final String MODID = "teleportpay";
+    public static final Logger LOGGER = LogUtils.getLogger();
 
-    public TeleportPay(IEventBus modEventBus) {
-        modEventBus.addListener(this::onCommonSetup);
+    private static File configDirectory;
+
+    // Einzelne Config-Klasse mit allen Werten
+    private static TeleportPayConfigData configData = new TeleportPayConfigData();
+
+    public static TeleportPayConfigData getConfig() {
+        return configData;
+    }
+
+    public static File getConfigDirectory() {
+        if (configDirectory == null) {
+            throw new IllegalStateException("Config directory not initialized yet");
+        }
+        return configDirectory;
+    }
+
+    public TeleportPay() {
+        // Event-Listener registrieren
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
-
-        CONFIG = TeleportPayConfig.loadConfig();
+        NeoForge.EVENT_BUS.addListener(this::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(this::onServerStopped);
     }
 
-    private void onCommonSetup(FMLCommonSetupEvent event) {
-        // Optional: Setup
+    private void onRegisterCommands(RegisterCommandsEvent event) {
+        event.getDispatcher().register(TeleportPayCommand.build(Commands.literal("tppay")));
+        event.getDispatcher().register(TpConfirmCommand.build(Commands.literal("tpconfirm")));
+        event.getDispatcher().register(TeleportPayConfigCommand.build(Commands.literal("teleportpayconfig")));
+        LOGGER.info("TeleportPay Commands registriert.");
     }
 
-    public void onRegisterCommands(RegisterCommandsEvent event) {
-        TeleportCommand.register(event);
-        TeleportConfigCommand.register(event.getDispatcher());
-        net.aiirial.teleportpay.command.TeleportPayConfigReloadCommand.register(event.getDispatcher());
+    private void onServerStarted(ServerStartedEvent event) {
+        File serverDir = event.getServer().getServerDirectory().toFile();
+        configDirectory = new File(serverDir, "config/" + MODID);
+        if (!configDirectory.exists()) {
+            configDirectory.mkdirs();
+        }
+
+        // Config laden
+        configData = ConfigUtil.loadMainConfig(event.getServer());
+
+        LOGGER.info("TeleportPay Konfiguration geladen.");
     }
 
+    public static void saveConfig(MinecraftServer server, TeleportPayConfigData cfg) {
+        configData = cfg;
+        ConfigUtil.saveMainConfig(cfg, server);
+    }
 
+    private void onServerStopped(ServerStoppedEvent event) {
+        ConfigUtil.saveMainConfig(configData, event.getServer());
+        LOGGER.info("TeleportPay Konfiguration gespeichert.");
+    }
+
+    public static void reloadConfig(MinecraftServer server) {
+        if (server != null) {
+            configData = ConfigUtil.loadMainConfig(server);
+            LOGGER.info("TeleportPay-Konfiguration wurde neu geladen.");
+        } else {
+            LOGGER.warn("reloadConfig ohne Server aufgerufen - Abbruch.");
+        }
+    }
 }

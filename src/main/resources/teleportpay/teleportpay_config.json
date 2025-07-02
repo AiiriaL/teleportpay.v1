@@ -7,5 +7,6 @@
   "costTier3": 25,
   "cooldownTier1": 60,
   "cooldownTier2": 300,
-  "cooldownTier3": 900
+  "cooldownTier3": 900,
+  "confirmTeleport": true
 }
