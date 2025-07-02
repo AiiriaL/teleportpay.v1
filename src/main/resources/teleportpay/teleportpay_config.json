@@ -1,4 +1,7 @@
 {
+  "paymentItem": "minecraft:diamond",
+  "rangeTier1": 1000,
+  "rangeTier2": 2500,
   "costTier1": 1,
   "costTier2": 10,
   "costTier3": 25,

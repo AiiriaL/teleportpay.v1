@@ -45,7 +45,6 @@ public class TeleportPayConfig {
         return config;
     }
 
-    // ✅ NEU: Damit die Zeile in TeleportPay funktioniert
     public static TeleportPayConfigData loadConfig() {
         File configDir = new File("config");
         return load(configDir);
