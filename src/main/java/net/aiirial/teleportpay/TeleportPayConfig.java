@@ -12,6 +12,7 @@ public class TeleportPayConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String CONFIG_FILE_NAME = "teleportpay.json";
+    public static TeleportPayConfigData CONFIG;
 
     public static TeleportPayConfigData load(File configDir) {
         File configFile = new File(configDir, CONFIG_FILE_NAME);
@@ -42,11 +43,27 @@ public class TeleportPayConfig {
             }
         }
 
+        CONFIG = config;
         return config;
     }
 
     public static TeleportPayConfigData loadConfig() {
         File configDir = new File("config");
         return load(configDir);
+    }
+
+    public static void save(File configDir, TeleportPayConfigData config) {
+        File configFile = new File(configDir, CONFIG_FILE_NAME);
+        try (FileWriter writer = new FileWriter(configFile)) {
+            GSON.toJson(config, writer);
+            System.out.println("[TeleportPay] Config gespeichert unter: " + configFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("[TeleportPay] Fehler beim Speichern der Config: " + e.getMessage());
+        }
+    }
+
+    public static void reload(File configDir) {
+        CONFIG = load(configDir);
+        System.out.println("[TeleportPay] Config neu geladen von: " + new File(configDir, CONFIG_FILE_NAME).getAbsolutePath());
     }
 }

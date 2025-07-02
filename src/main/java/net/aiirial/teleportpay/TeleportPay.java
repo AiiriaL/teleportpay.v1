@@ -24,7 +24,11 @@ public class TeleportPay {
         // Optional: Setup
     }
 
-    private void onRegisterCommands(RegisterCommandsEvent event) {
+    public void onRegisterCommands(RegisterCommandsEvent event) {
         TeleportCommand.register(event);
+        TeleportConfigCommand.register(event.getDispatcher());
+        net.aiirial.teleportpay.command.TeleportPayConfigReloadCommand.register(event.getDispatcher());
     }
+
+
 }
