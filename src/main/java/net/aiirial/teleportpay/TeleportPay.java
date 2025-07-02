@@ -1,5 +1,6 @@
 package net.aiirial.teleportpay;
 
+import net.aiirial.teleportpay.command.TeleportPayConfigReloadCommand;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -17,18 +18,18 @@ public class TeleportPay {
         modEventBus.addListener(this::onCommonSetup);
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
 
+        // Config laden
         CONFIG = TeleportPayConfig.loadConfig();
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {
-        // Optional: Setup
+        // Optional: weitere Setup-Logik
     }
 
-    public void onRegisterCommands(RegisterCommandsEvent event) {
+    private void onRegisterCommands(RegisterCommandsEvent event) {
+        // Alle Commands registrieren
         TeleportCommand.register(event);
         TeleportConfigCommand.register(event.getDispatcher());
-        net.aiirial.teleportpay.command.TeleportPayConfigReloadCommand.register(event.getDispatcher());
+        TeleportPayConfigReloadCommand.register(event.getDispatcher());
     }
-
-
 }
