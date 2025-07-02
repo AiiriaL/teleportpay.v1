@@ -28,6 +28,7 @@ public class TeleportCommand {
     private static final String COMMAND_NAME = "teleportpay";
     private static final Map<UUID, Long> playerCooldowns = new HashMap<>();
     private static final Map<MinecraftServer, Boolean> netherTeleportRule = new HashMap<>();
+    private static final Map<MinecraftServer, Boolean> modEnabledRule = new HashMap<>();
 
     public static void register(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
@@ -50,7 +51,6 @@ public class TeleportCommand {
                                                 DoubleArgumentType.getDouble(context, "y"),
                                                 DoubleArgumentType.getDouble(context, "z")))))));
 
-        // Neuer Admin-Befehl für Nether-Regel
         dispatcher.register(Commands.literal("teleportpayrule")
                 .requires(source -> source.hasPermission(2))
                 .then(Commands.literal("nether")
@@ -62,10 +62,27 @@ public class TeleportCommand {
                                             netherTeleportRule.put(server, enabled);
                                             context.getSource().sendSuccess(() -> Component.literal("[TeleportPay] Nether-Teleport über Bedrock: " + enabled).withStyle(ChatFormatting.YELLOW), true);
                                             return 1;
-                                        })))));
+                                        }))))
+                .then(Commands.literal("on")
+                        .then(Commands.argument("enabled", BoolArgumentType.bool())
+                                .executes(context -> {
+                                    MinecraftServer server = context.getSource().getServer();
+                                    boolean enabled = BoolArgumentType.getBool(context, "enabled");
+                                    modEnabledRule.put(server, enabled);
+                                    context.getSource().sendSuccess(() -> Component.literal("[TeleportPay] Mod global aktiviert: " + enabled).withStyle(ChatFormatting.YELLOW), true);
+                                    return 1;
+                                }))));
     }
 
     private static int executeTeleport(CommandSourceStack source, double x, double y, double z) {
+        MinecraftServer server = source.getServer();
+
+        // Check: Mod global aktiviert?
+        if (!modEnabledRule.getOrDefault(server, true)) {
+            source.sendFailure(Component.literal("[TeleportPay] Der TeleportPay-Befehl ist derzeit serverweit deaktiviert.").withStyle(ChatFormatting.RED));
+            return 0;
+        }
+
         ServerPlayer player = source.getPlayer();
         UUID playerId = player.getUUID();
 
@@ -74,7 +91,6 @@ public class TeleportCommand {
         int maxY = world.getMaxBuildHeight() - 1;
 
         // Nether Y-Höhenregel prüfen
-        MinecraftServer server = source.getServer();
         if (world.dimension().location().toString().equals("minecraft:the_nether")) {
             boolean allowOverBedrock = netherTeleportRule.getOrDefault(server, false);
             int allowedMaxY = allowOverBedrock ? maxY : 120;
@@ -96,7 +112,6 @@ public class TeleportCommand {
         int cost;
         int cooldown;
 
-        // Distanz-Tiers aus der Config
         if (distance <= TeleportPay.CONFIG.rangeTier1) {
             cost = TeleportPay.CONFIG.costTier1;
             cooldown = TeleportPay.CONFIG.cooldownTier1;
