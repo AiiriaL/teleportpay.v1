@@ -5,7 +5,12 @@ import net.aiirial.teleportpay.TeleportPay;
 import net.aiirial.teleportpay.command.TeleportPayCommand.PendingTeleportData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+
 
 public class TpConfirmCommand {
 
@@ -20,11 +25,22 @@ public class TpConfirmCommand {
                         return 0;
                     }
 
-                    // Entfernen, bevor Teleport durchgeführt wird
+                    // Entferne zuerst den Pending-Eintrag
                     TeleportPayCommand.clearPending(player.getUUID());
 
-                    return TeleportPayCommand.executeTeleport(
+                    // Hole Ziel-Dimension (ResourceLocation ist ein Feld in PendingTeleportData)
+                    ResourceKey<Level> dimensionKey = ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, data.targetDimension);
+                    ServerLevel targetLevel = player.server.getLevel(dimensionKey);
+
+                    if (targetLevel == null) {
+                        player.sendSystemMessage(Component.literal("§cZiel-Dimension nicht gefunden."));
+                        return 0;
+                    }
+
+                    // Führe Teleportation aus - CROSS DIMENSION
+                    return TeleportPayCommand.executeTeleportCrossDim(
                             player,
+                            targetLevel,
                             data.target,
                             data.paymentItem,
                             data.cost,
