@@ -27,6 +27,21 @@ public class TeleportPayConfigCommand {
                         .then(Commands.literal("paymentItem")
                                 .then(Commands.argument("item", StringArgumentType.word())
                                         .executes(ctx -> setPaymentItem(ctx.getSource(), StringArgumentType.getString(ctx, "item")))))
+                        // Neu: maxWaypointsPerPlayer
+                        .then(Commands.literal("maxWaypointsPerPlayer")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> setInt("maxWaypointsPerPlayer", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                        // Neu: rangeTier1 & rangeTier2
+                        .then(Commands.literal("rangeTier1")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> setInt("rangeTier1", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                        .then(Commands.literal("rangeTier2")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> setInt("rangeTier2", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                        .then(Commands.literal("rangeTier3")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> setInt("rangeTier3", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource())))
+                        )
                         .then(Commands.literal("costTier1")
                                 .then(Commands.argument("value", IntegerArgumentType.integer(0))
                                         .executes(ctx -> setInt("costTier1", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
@@ -67,6 +82,9 @@ public class TeleportPayConfigCommand {
     private static int setInt(String key, int value, CommandSourceStack source) {
         TeleportPayConfigData cfg = TeleportPay.getConfig();
         switch (key) {
+            case "maxWaypointsPerPlayer" -> cfg.maxWaypointsPerPlayer = value;
+            case "rangeTier1" -> cfg.rangeTier1 = value;
+            case "rangeTier2" -> cfg.rangeTier2 = value;
             case "costTier1" -> cfg.costTier1 = value;
             case "costTier2" -> cfg.costTier2 = value;
             case "costTier3" -> cfg.costTier3 = value;

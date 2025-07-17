@@ -28,6 +28,9 @@ public class TeleportPay {
     // Einzelne Config-Klasse mit allen Werten
     private static TeleportPayConfigData configData = new TeleportPayConfigData();
 
+    // Aktueller Server für Config-Operationen (wird bei Serverstart gesetzt)
+    private static MinecraftServer currentServer;
+
     public static TeleportPayConfigData getConfig() {
         return configData;
     }
@@ -54,14 +57,17 @@ public class TeleportPay {
     }
 
     private void onServerStarted(ServerStartedEvent event) {
-        File serverDir = event.getServer().getServerDirectory().toFile();
+        MinecraftServer server = event.getServer();
+        currentServer = server;
+
+        File serverDir = server.getServerDirectory().toFile();
         configDirectory = new File(serverDir, "config/" + MODID);
         if (!configDirectory.exists()) {
             configDirectory.mkdirs();
         }
 
         // Config laden
-        configData = ConfigUtil.loadMainConfig(event.getServer());
+        configData = ConfigUtil.loadMainConfig(server);
 
         LOGGER.info("TeleportPay Konfiguration geladen.");
     }
@@ -71,9 +77,22 @@ public class TeleportPay {
         ConfigUtil.saveMainConfig(cfg, server);
     }
 
+    /**
+     * Hilfsmethode, um die Config zu speichern, falls der Server bekannt ist.
+     */
+    public static void saveConfig() {
+        if (currentServer != null) {
+            saveConfig(currentServer, configData);
+            LOGGER.info("TeleportPay Konfiguration gespeichert.");
+        } else {
+            LOGGER.warn("saveConfig aufgerufen, aber kein Server bekannt.");
+        }
+    }
+
     private void onServerStopped(ServerStoppedEvent event) {
         ConfigUtil.saveMainConfig(configData, event.getServer());
         LOGGER.info("TeleportPay Konfiguration gespeichert.");
+        currentServer = null;
     }
 
     public static void reloadConfig(MinecraftServer server) {
