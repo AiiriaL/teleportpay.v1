@@ -33,9 +33,11 @@ public class TeleportPayCommand {
 
     public static LiteralArgumentBuilder<CommandSourceStack> register() {
         return Commands.literal("tppay")
+                // Teleport zu Koordinaten
                 .then(Commands.argument("position", Vec3Argument.vec3())
                         .executes(ctx -> handleTeleport(ctx, Vec3Argument.getVec3(ctx, "position"))))
 
+                // Wegpunkt setzen
                 .then(Commands.literal("set")
                         .then(Commands.literal("waypoint")
                                 .then(Commands.argument("name", StringArgumentType.word())
@@ -56,6 +58,7 @@ public class TeleportPayCommand {
                                             player.sendSystemMessage(Component.literal("§aWegpunkt §b" + name + " §agesetzt."));
                                             return 1;
                                         }))))
+                // Wegpunkt löschen
                 .then(Commands.literal("delete")
                         .then(Commands.literal("waypoint")
                                 .then(Commands.argument("name", StringArgumentType.word())
@@ -72,7 +75,9 @@ public class TeleportPayCommand {
                                                 return 0;
                                             }
                                         }))))
+                // Wegpunkt-Liste und Teleport zu Wegpunkt
                 .then(Commands.literal("waypoint")
+                        // Liste aller Wegpunkte anzeigen
                         .then(Commands.literal("list")
                                 .executes(ctx -> {
                                     ServerPlayer player = ctx.getSource().getPlayerOrException();
@@ -87,6 +92,7 @@ public class TeleportPayCommand {
                                     }
                                     return 1;
                                 }))
+                        // Teleport zu einem Wegpunkt
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .executes(ctx -> {
                                     ServerPlayer player = ctx.getSource().getPlayerOrException();
@@ -155,12 +161,27 @@ public class TeleportPayCommand {
                                         return 0;
                                     }
 
+                                    // Bestätigung bei confirmTeleport und Tier >= 2
+                                    if (cfg.confirmTeleport && tier >= 2) {
+                                        pendingTeleport.put(uuid, new PendingTeleportData(
+                                                new Vec3(wp.x, wp.y, wp.z),
+                                                targetLevel.dimension().location(),
+                                                cost,
+                                                cooldown,
+                                                paymentItem,
+                                                tier));
+                                        player.sendSystemMessage(Component.literal("§eBitte bestätige mit §b/tpconfirm§e – Kosten: §b" + cost + " §e" + paymentItem.getDescription().getString()));
+                                        return 1;
+                                    }
+
+                                    // Direkter Teleport ohne Bestätigung
                                     return executeTeleportCrossDim(player, targetLevel, new Vec3(wp.x, wp.y, wp.z),
                                             paymentItem,
                                             cost,
                                             cooldown,
                                             tier);
                                 })));
+
     }
 
     // Cooldown Maps pro Tier
@@ -173,7 +194,7 @@ public class TeleportPayCommand {
 
     public static class PendingTeleportData {
         public final Vec3 target;
-        public final ResourceLocation targetDimension;  // Dimension als ResourceLocation
+        public final ResourceLocation targetDimension;
         public final int cost;
         public final int cooldown;
         public final Item paymentItem;
