@@ -6,6 +6,8 @@ import net.aiirial.teleportpay.command.TpConfirmCommand;
 import net.aiirial.teleportpay.command.TeleportPayConfigCommand;
 import net.aiirial.teleportpay.config.TeleportPayConfigData;
 import net.aiirial.teleportpay.util.ConfigUtil;
+import net.aiirial.teleportpay.waypoint.WaypointStorage;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.fml.common.Mod;
@@ -25,8 +27,9 @@ public class TeleportPay {
 
     private static File configDirectory;
 
-    // Einzelne Config-Klasse mit allen Werten
     private static TeleportPayConfigData configData = new TeleportPayConfigData();
+
+    private static MinecraftServer currentServer;
 
     public static TeleportPayConfigData getConfig() {
         return configData;
@@ -40,30 +43,52 @@ public class TeleportPay {
     }
 
     public TeleportPay() {
-        // Event-Listener registrieren
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
         NeoForge.EVENT_BUS.addListener(this::onServerStopped);
     }
 
     private void onRegisterCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(TeleportPayCommand.build(Commands.literal("tppay")));
-        event.getDispatcher().register(TpConfirmCommand.build(Commands.literal("tpconfirm")));
-        event.getDispatcher().register(TeleportPayConfigCommand.build(Commands.literal("teleportpayconfig")));
+        // Wichtig: TeleportPayCommand nutzt build() um Command-Struktur zu bauen
+        event.getDispatcher().register(
+                TeleportPayCommand.register()
+        );
+
+        event.getDispatcher().register(TpConfirmCommand.register());
+        event.getDispatcher().register(TeleportPayConfigCommand.register());
         LOGGER.info("TeleportPay Commands registriert.");
     }
 
     private void onServerStarted(ServerStartedEvent event) {
-        File serverDir = event.getServer().getServerDirectory().toFile();
+        MinecraftServer server = event.getServer();
+        currentServer = server;
+
+        File serverDir = server.getServerDirectory().toFile();
         configDirectory = new File(serverDir, "config/" + MODID);
         if (!configDirectory.exists()) {
             configDirectory.mkdirs();
         }
 
         // Config laden
-        configData = ConfigUtil.loadMainConfig(event.getServer());
+        configData = ConfigUtil.loadMainConfig(server);
 
-        LOGGER.info("TeleportPay Konfiguration geladen.");
+        // Waypoints laden
+        WaypointStorage.load(server);
+
+        LOGGER.info("TeleportPay Konfiguration und Waypoints geladen.");
+    }
+
+    private void onServerStopped(ServerStoppedEvent event) {
+        MinecraftServer server = event.getServer();
+
+        // Config speichern
+        ConfigUtil.saveMainConfig(configData, server);
+
+        // Waypoints speichern
+        WaypointStorage.save(server);
+
+        LOGGER.info("TeleportPay Konfiguration und Waypoints gespeichert.");
+        currentServer = null;
     }
 
     public static void saveConfig(MinecraftServer server, TeleportPayConfigData cfg) {
@@ -71,9 +96,13 @@ public class TeleportPay {
         ConfigUtil.saveMainConfig(cfg, server);
     }
 
-    private void onServerStopped(ServerStoppedEvent event) {
-        ConfigUtil.saveMainConfig(configData, event.getServer());
-        LOGGER.info("TeleportPay Konfiguration gespeichert.");
+    public static void saveConfig() {
+        if (currentServer != null) {
+            saveConfig(currentServer, configData);
+            LOGGER.info("TeleportPay Konfiguration gespeichert.");
+        } else {
+            LOGGER.warn("saveConfig aufgerufen, aber kein Server bekannt.");
+        }
     }
 
     public static void reloadConfig(MinecraftServer server) {

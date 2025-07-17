@@ -7,47 +7,84 @@ import net.aiirial.teleportpay.TeleportPay;
 import net.aiirial.teleportpay.config.TeleportPayConfigData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.item.Item;
-import net.minecraft.core.registries.BuiltInRegistries;
 
 public class TeleportPayConfigCommand {
 
-    public static LiteralArgumentBuilder<CommandSourceStack> build(LiteralArgumentBuilder<CommandSourceStack> root) {
-        return root.requires(source -> source.hasPermission(2)) // Nur Admins
+    public static LiteralArgumentBuilder<CommandSourceStack> register() {
+        return Commands.literal("teleportpayconfig")
+                .requires(source -> source.hasPermission(2)) // Nur Admins
                 .then(Commands.literal("set")
                         .then(Commands.literal("confirmTeleport")
                                 .then(Commands.literal("true").executes(ctx -> setBoolean("confirmTeleport", true, ctx.getSource())))
-                                .then(Commands.literal("false").executes(ctx -> setBoolean("confirmTeleport", false, ctx.getSource()))))
+                                .then(Commands.literal("false").executes(ctx -> setBoolean("confirmTeleport", false, ctx.getSource())))
+                        )
                         .then(Commands.literal("allowTeleportAboveY120InNether")
                                 .then(Commands.literal("true").executes(ctx -> setBoolean("allowTeleportAboveY120InNether", true, ctx.getSource())))
-                                .then(Commands.literal("false").executes(ctx -> setBoolean("allowTeleportAboveY120InNether", false, ctx.getSource()))))
+                                .then(Commands.literal("false").executes(ctx -> setBoolean("allowTeleportAboveY120InNether", false, ctx.getSource())))
+                        )
                         .then(Commands.literal("paymentItem")
                                 .then(Commands.argument("item", StringArgumentType.word())
-                                        .executes(ctx -> setPaymentItem(ctx.getSource(), StringArgumentType.getString(ctx, "item")))))
+                                        .executes(ctx -> setPaymentItem(ctx.getSource(), StringArgumentType.getString(ctx, "item")))
+                                )
+                        )
+                        .then(Commands.literal("maxWaypointsPerPlayer")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> setInt("maxWaypointsPerPlayer", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
+                        .then(Commands.literal("rangeTier1")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> setInt("rangeTier1", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
+                        .then(Commands.literal("rangeTier2")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> setInt("rangeTier2", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
+                        .then(Commands.literal("rangeTier3")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(0))
+                                        .executes(ctx -> setInt("rangeTier3", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
                         .then(Commands.literal("costTier1")
                                 .then(Commands.argument("value", IntegerArgumentType.integer(0))
-                                        .executes(ctx -> setInt("costTier1", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                                        .executes(ctx -> setInt("costTier1", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
                         .then(Commands.literal("costTier2")
                                 .then(Commands.argument("value", IntegerArgumentType.integer(0))
-                                        .executes(ctx -> setInt("costTier2", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                                        .executes(ctx -> setInt("costTier2", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
                         .then(Commands.literal("costTier3")
                                 .then(Commands.argument("value", IntegerArgumentType.integer(0))
-                                        .executes(ctx -> setInt("costTier3", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                                        .executes(ctx -> setInt("costTier3", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
                         .then(Commands.literal("cooldownTier1")
                                 .then(Commands.argument("value", IntegerArgumentType.integer(0))
-                                        .executes(ctx -> setInt("cooldownTier1", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                                        .executes(ctx -> setInt("cooldownTier1", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
                         .then(Commands.literal("cooldownTier2")
                                 .then(Commands.argument("value", IntegerArgumentType.integer(0))
-                                        .executes(ctx -> setInt("cooldownTier2", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                                        .executes(ctx -> setInt("cooldownTier2", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
                         .then(Commands.literal("cooldownTier3")
                                 .then(Commands.argument("value", IntegerArgumentType.integer(0))
-                                        .executes(ctx -> setInt("cooldownTier3", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))))
+                                        .executes(ctx -> setInt("cooldownTier3", IntegerArgumentType.getInteger(ctx, "value"), ctx.getSource()))
+                                )
+                        )
                 )
                 .then(Commands.literal("reload")
-                        .executes(ctx -> reloadConfig(ctx.getSource())));
+                        .executes(ctx -> reloadConfig(ctx.getSource()))
+                );
     }
 
     private static int setBoolean(String key, boolean value, CommandSourceStack source) {
@@ -67,6 +104,10 @@ public class TeleportPayConfigCommand {
     private static int setInt(String key, int value, CommandSourceStack source) {
         TeleportPayConfigData cfg = TeleportPay.getConfig();
         switch (key) {
+            case "maxWaypointsPerPlayer" -> cfg.maxWaypointsPerPlayer = value;
+            case "rangeTier1" -> cfg.rangeTier1 = value;
+            case "rangeTier2" -> cfg.rangeTier2 = value;
+            case "rangeTier3" -> cfg.rangeTier3 = value;
             case "costTier1" -> cfg.costTier1 = value;
             case "costTier2" -> cfg.costTier2 = value;
             case "costTier3" -> cfg.costTier3 = value;

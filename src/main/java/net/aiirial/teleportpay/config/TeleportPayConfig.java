@@ -14,12 +14,27 @@ public class TeleportPayConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String CONFIG_FILE_NAME = "teleportpay_config.json";
 
+    // Singleton-Instanz der geladenen Config
+    private static TeleportPayConfigData currentConfig = null;
+
     /**
-     * Lädt die Konfiguration aus dem Mod-spezifischen Config-Verzeichnis.
+     * Lädt die Konfiguration aus dem Mod-spezifischen Config-Verzeichnis
+     * und speichert sie in currentConfig.
      */
-    public static TeleportPayConfigData load() {
+    public static void load() {
         File configDir = TeleportPay.getConfigDirectory();
-        return load(configDir);
+        currentConfig = load(configDir);
+    }
+
+    /**
+     * Gibt die aktuell geladene Konfiguration zurück.
+     * Falls noch keine geladen ist, wird einmal geladen.
+     */
+    public static TeleportPayConfigData get() {
+        if (currentConfig == null) {
+            load();
+        }
+        return currentConfig;
     }
 
     /**
@@ -72,5 +87,12 @@ public class TeleportPayConfig {
      */
     public static TeleportPayConfigData getDefaultConfig() {
         return new TeleportPayConfigData();
+    }
+
+    /**
+     * Reload der Config aus dem Config-Verzeichnis.
+     */
+    public static void reload() {
+        load();
     }
 }

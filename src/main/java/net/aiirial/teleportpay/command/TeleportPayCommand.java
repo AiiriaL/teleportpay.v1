@@ -1,19 +1,22 @@
 package net.aiirial.teleportpay.command;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import net.aiirial.teleportpay.TeleportPay;
 import net.aiirial.teleportpay.config.TeleportPayConfigData;
+import net.aiirial.teleportpay.waypoint.WaypointData;
+import net.aiirial.teleportpay.waypoint.WaypointManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -21,36 +24,169 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public class TeleportPayCommand {
 
+    public static LiteralArgumentBuilder<CommandSourceStack> register() {
+        return Commands.literal("tppay")
+                .then(Commands.argument("position", Vec3Argument.vec3())
+                        .executes(ctx -> handleTeleport(ctx, Vec3Argument.getVec3(ctx, "position"))))
+
+                .then(Commands.literal("set")
+                        .then(Commands.literal("waypoint")
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .executes(ctx -> {
+                                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                            String name = StringArgumentType.getString(ctx, "name");
+
+                                            int maxWaypoints = TeleportPay.getConfig().maxWaypointsPerPlayer;
+                                            boolean success = WaypointManager.addWaypoint(player,
+                                                    new WaypointData(name, player.blockPosition(), player.serverLevel().dimension().location()),
+                                                    maxWaypoints);
+
+                                            if (!success) {
+                                                player.sendSystemMessage(Component.literal("§cWegpunkt konnte nicht hinzugefügt werden (Max erreicht oder Name existiert)."));
+                                                return 0;
+                                            }
+
+                                            player.sendSystemMessage(Component.literal("§aWegpunkt §b" + name + " §agesetzt."));
+                                            return 1;
+                                        }))))
+                .then(Commands.literal("delete")
+                        .then(Commands.literal("waypoint")
+                                .then(Commands.argument("name", StringArgumentType.word())
+                                        .executes(ctx -> {
+                                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                            String name = StringArgumentType.getString(ctx, "name");
+
+                                            boolean removed = WaypointManager.removeWaypoint(player, name);
+                                            if (removed) {
+                                                player.sendSystemMessage(Component.literal("§aWegpunkt §b" + name + " §aentfernt."));
+                                                return 1;
+                                            } else {
+                                                player.sendSystemMessage(Component.literal("§cWegpunkt §b" + name + " §cnicht gefunden."));
+                                                return 0;
+                                            }
+                                        }))))
+                .then(Commands.literal("waypoint")
+                        .then(Commands.literal("list")
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    List<WaypointData> waypoints = WaypointManager.getWaypoints(player.getUUID());
+                                    if (waypoints.isEmpty()) {
+                                        player.sendSystemMessage(Component.literal("§cKeine Wegpunkte gesetzt."));
+                                    } else {
+                                        player.sendSystemMessage(Component.literal("§aWegpunkte:"));
+                                        for (WaypointData wp : waypoints) {
+                                            player.sendSystemMessage(Component.literal(" - §b" + wp.name + " §7(" + wp.x + ", " + wp.y + ", " + wp.z + ")"));
+                                        }
+                                    }
+                                    return 1;
+                                }))
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(ctx -> {
+                                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                                    String name = StringArgumentType.getString(ctx, "name");
+                                    WaypointData wp = WaypointManager.getWaypoint(player, name);
+                                    if (wp == null) {
+                                        player.sendSystemMessage(Component.literal("§cWegpunkt nicht gefunden: " + name));
+                                        return 0;
+                                    }
+
+                                    ResourceKey<Level> dimensionKey = wp.getDimensionKey();
+                                    if (dimensionKey == null) {
+                                        player.sendSystemMessage(Component.literal("§cUngültige Dimension im Wegpunkt: " + wp.dimension));
+                                        return 0;
+                                    }
+
+                                    ServerLevel targetLevel = player.getServer().getLevel(dimensionKey);
+                                    if (targetLevel == null) {
+                                        player.sendSystemMessage(Component.literal("§cZiel-Dimension nicht gefunden: " + wp.dimension));
+                                        return 0;
+                                    }
+
+                                    // Distanz 2D zwischen Spielerposition und Ziel-Wegpunkt
+                                    Vec3 playerPos = player.position();
+                                    double distanceXZ = Math.hypot(playerPos.x - wp.x, playerPos.z - wp.z);
+
+                                    TeleportPayConfigData cfg = TeleportPay.getConfig();
+                                    int tier, cost, cooldown;
+                                    Map<UUID, Long> cooldownMap;
+                                    if (distanceXZ <= cfg.rangeTier1) {
+                                        tier = 1;
+                                        cost = cfg.costTier1;
+                                        cooldown = cfg.cooldownTier1;
+                                        cooldownMap = lastUsedTier1;
+                                    } else if (distanceXZ <= cfg.rangeTier2) {
+                                        tier = 2;
+                                        cost = cfg.costTier2;
+                                        cooldown = cfg.cooldownTier2;
+                                        cooldownMap = lastUsedTier2;
+                                    } else {
+                                        tier = 3;
+                                        cost = cfg.costTier3;
+                                        cooldown = cfg.cooldownTier3;
+                                        cooldownMap = lastUsedTier3;
+                                    }
+
+                                    // Prüfe Cooldown
+                                    UUID uuid = player.getUUID();
+                                    long now = System.currentTimeMillis();
+                                    if (cooldownMap.containsKey(uuid) && now - cooldownMap.get(uuid) < cooldown * 1000L) {
+                                        long remaining = cooldown - (now - cooldownMap.get(uuid)) / 1000L;
+                                        player.sendSystemMessage(Component.literal("§cCooldown für Stufe " + tier + ": " + remaining + " Sekunden"));
+                                        return 0;
+                                    }
+
+                                    // Item prüfen
+                                    Item paymentItem = getItemByName(cfg.paymentItem);
+                                    if (paymentItem == null) {
+                                        player.sendSystemMessage(Component.literal("§cUngültiges Item in der Konfiguration: " + cfg.paymentItem));
+                                        return 0;
+                                    }
+
+                                    int count = countItems(player, paymentItem);
+                                    if (count < cost) {
+                                        player.sendSystemMessage(Component.literal("§cNicht genügend " + paymentItem.getDescription().getString() + " (benötigt: " + cost + ")"));
+                                        return 0;
+                                    }
+
+                                    return executeTeleportCrossDim(player, targetLevel, new Vec3(wp.x, wp.y, wp.z),
+                                            paymentItem,
+                                            cost,
+                                            cooldown,
+                                            tier);
+                                })));
+    }
+
+    // Cooldown Maps pro Tier
     private static final Map<UUID, Long> lastUsedTier1 = new HashMap<>();
     private static final Map<UUID, Long> lastUsedTier2 = new HashMap<>();
     private static final Map<UUID, Long> lastUsedTier3 = new HashMap<>();
 
+    // Pending Teleports zur Bestätigung
     private static final Map<UUID, PendingTeleportData> pendingTeleport = new HashMap<>();
 
     public static class PendingTeleportData {
         public final Vec3 target;
+        public final ResourceLocation targetDimension;  // Dimension als ResourceLocation
         public final int cost;
         public final int cooldown;
         public final Item paymentItem;
         public final int tier;
 
-        public PendingTeleportData(Vec3 target, int cost, int cooldown, Item paymentItem, int tier) {
+        public PendingTeleportData(Vec3 target, ResourceLocation targetDimension, int cost, int cooldown, Item paymentItem, int tier) {
             this.target = target;
+            this.targetDimension = targetDimension;
             this.cost = cost;
             this.cooldown = cooldown;
             this.paymentItem = paymentItem;
             this.tier = tier;
         }
-    }
-
-    public static LiteralArgumentBuilder<CommandSourceStack> build(LiteralArgumentBuilder<CommandSourceStack> root) {
-        return root.requires(source -> source.hasPermission(0))
-                .then(Commands.argument("position", Vec3Argument.vec3())
-                        .executes(ctx -> handleTeleport(ctx, Vec3Argument.getVec3(ctx, "position"))));
     }
 
     private static int handleTeleport(CommandContext<CommandSourceStack> ctx, Vec3 target) {
@@ -122,12 +258,33 @@ public class TeleportPayCommand {
         }
 
         if (cfg.confirmTeleport && tier >= 2) {
-            pendingTeleport.put(uuid, new PendingTeleportData(target, cost, cooldown, paymentItem, tier));
+            pendingTeleport.put(uuid, new PendingTeleportData(target, level.dimension().location(), cost, cooldown, paymentItem, tier));
             player.sendSystemMessage(Component.literal("§eBitte bestätige mit §b/tpconfirm§e – Kosten: §b" + cost + " §e" + paymentItem.getDescription().getString()));
             return 1;
         }
 
         return executeTeleport(player, target, paymentItem, cost, cooldown, tier);
+    }
+
+    public static int executeTeleportCrossDim(ServerPlayer player, ServerLevel targetLevel, Vec3 originalTarget, Item paymentItem, int cost, int cooldown, int tier) {
+        BlockPos targetPos = BlockPos.containing(originalTarget);
+
+        BlockPos safe = findSafeTeleportPosition(targetLevel, targetPos);
+        if (safe == null) {
+            player.sendSystemMessage(Component.literal("§cKeine sichere Position in der Nähe gefunden."));
+            return 0;
+        }
+
+        if (!player.getAbilities().instabuild) {
+            removeItems(player, paymentItem, cost);
+        }
+
+        player.teleportTo(targetLevel, safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, player.getYRot(), player.getXRot());
+
+        getCooldownMap(tier).put(player.getUUID(), System.currentTimeMillis());
+
+        player.sendSystemMessage(Component.literal("§aTeleportiert für §b" + cost + " §a" + paymentItem.getDescription().getString()));
+        return 1;
     }
 
     public static int executeTeleport(ServerPlayer player, Vec3 originalTarget, Item paymentItem, int cost, int cooldown, int tier) {
@@ -163,26 +320,36 @@ public class TeleportPayCommand {
 
     private static BlockPos findSafeTeleportPosition(ServerLevel level, BlockPos basePos) {
         for (int yOffset = 0; yOffset <= 10; yOffset++) {
-            for (int direction : new int[]{yOffset, -yOffset}) {
-                BlockPos pos = basePos.offset(0, direction, 0);
-                if (isSafeTeleport(level, pos)) {
-                    return pos;
-                }
+            BlockPos posUp = basePos.above(yOffset);
+            if (isSafeTeleport(level, posUp)) return posUp;
+
+            if (yOffset != 0) {
+                BlockPos posDown = basePos.below(yOffset);
+                if (isSafeTeleport(level, posDown)) return posDown;
             }
         }
         return null;
     }
 
     private static boolean isSafeTeleport(ServerLevel level, BlockPos pos) {
-        BlockPos up1 = pos.above();
-        BlockPos up2 = up1.above();
+        BlockPos feet = pos;
+        BlockPos head = pos.above();
+        BlockPos aboveHead = pos.above(2);
 
-        boolean spaceFree = level.isEmptyBlock(pos) && level.isEmptyBlock(up1) && level.isEmptyBlock(up2);
-        boolean groundSolid = level.getBlockState(pos.below()).isSolid();
+        boolean feetClear = isPassable(level, feet);
+        boolean headClear = isPassable(level, head);
+        boolean aboveHeadClear = isPassable(level, aboveHead);
 
-        boolean notDangerous = !isDangerousBlock(level.getBlockState(pos.below()).getBlock());
+        BlockPos groundPos = pos.below();
+        boolean groundSolid = level.getBlockState(groundPos).isSolid();
+        boolean groundSafe = !isDangerousBlock(level.getBlockState(groundPos).getBlock());
 
-        return spaceFree && groundSolid && notDangerous;
+        return feetClear && headClear && aboveHeadClear && groundSolid && groundSafe;
+    }
+
+    private static boolean isPassable(ServerLevel level, BlockPos pos) {
+        var state = level.getBlockState(pos);
+        return state.isAir() || state.canBeReplaced() || state.getCollisionShape(level, pos).isEmpty();
     }
 
     private static boolean isDangerousBlock(net.minecraft.world.level.block.Block block) {
