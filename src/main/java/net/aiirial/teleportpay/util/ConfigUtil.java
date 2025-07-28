@@ -3,7 +3,6 @@ package net.aiirial.teleportpay.util;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.aiirial.teleportpay.TeleportPay;
-import net.aiirial.teleportpay.config.TeleportPayConfig;
 import net.aiirial.teleportpay.config.TeleportPayConfigData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -28,37 +27,44 @@ public class ConfigUtil {
     // ==============================
 
     public static TeleportPayConfigData loadMainConfig(MinecraftServer server) {
-        File configFile = new File(server.getServerDirectory().toFile(), "config/teleportpay/config.json");
+        File configFile = getConfigFile();
         if (!configFile.exists()) {
-            TeleportPay.LOGGER.info("Config-Datei existiert nicht, erstelle Standard-Config.");
+            TeleportPay.LOGGER.info("Config-Datei nicht gefunden. Erstelle Standard-Konfiguration: " + configFile.getAbsolutePath());
             TeleportPayConfigData defaultConfig = new TeleportPayConfigData();
             saveMainConfig(defaultConfig, server);
             return defaultConfig;
         }
 
         try (FileReader reader = new FileReader(configFile)) {
-            TeleportPay.LOGGER.info("Lade Config-Datei von: " + configFile.getAbsolutePath());
+            TeleportPay.LOGGER.info("Lade Konfiguration von: " + configFile.getAbsolutePath());
             return GSON.fromJson(reader, TeleportPayConfigData.class);
         } catch (IOException e) {
-            TeleportPay.LOGGER.error("Fehler beim Laden der Config-Datei:", e);
+            TeleportPay.LOGGER.error("Fehler beim Laden der Konfigurationsdatei:", e);
             return new TeleportPayConfigData();
         }
     }
 
-
-
     public static void saveMainConfig(TeleportPayConfigData config, MinecraftServer server) {
-        File configFile = new File(server.getServerDirectory().toFile(), "config/teleportpay/config.json");
+        File configFile = getConfigFile();
         try {
-            if (!configFile.getParentFile().exists()) {
-                configFile.getParentFile().mkdirs();
+            File parentDir = configFile.getParentFile();
+            if (!parentDir.exists()) {
+                if (parentDir.mkdirs()) {
+                    TeleportPay.LOGGER.info("Config-Verzeichnis erstellt: " + parentDir.getAbsolutePath());
+                }
             }
+
             try (FileWriter writer = new FileWriter(configFile)) {
                 GSON.toJson(config, writer);
+                TeleportPay.LOGGER.info("Konfiguration gespeichert unter: " + configFile.getAbsolutePath());
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            TeleportPay.LOGGER.error("Fehler beim Speichern der Konfiguration:", e);
         }
+    }
+
+    private static File getConfigFile() {
+        return new File("config/teleportpay/config.json");
     }
 
     // ==============================
@@ -94,8 +100,8 @@ public class ConfigUtil {
                 block == Blocks.CACTUS ||
                 block == Blocks.MAGMA_BLOCK ||
                 block == Blocks.FIRE ||
-                block == Blocks.SAND ||  // Sand explizit prüfen
-                block == Blocks.GRAVEL;  // Kies explizit prüfen
+                block == Blocks.SAND ||
+                block == Blocks.GRAVEL;
     }
 
     public static BlockPos findNextSafePosition(Level level, BlockPos startPos) {
