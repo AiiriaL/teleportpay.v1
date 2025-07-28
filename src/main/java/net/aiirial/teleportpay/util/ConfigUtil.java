@@ -2,6 +2,8 @@ package net.aiirial.teleportpay.util;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.aiirial.teleportpay.TeleportPay;
+import net.aiirial.teleportpay.config.TeleportPayConfig;
 import net.aiirial.teleportpay.config.TeleportPayConfigData;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -28,16 +30,22 @@ public class ConfigUtil {
     public static TeleportPayConfigData loadMainConfig(MinecraftServer server) {
         File configFile = new File(server.getServerDirectory().toFile(), "config/teleportpay/config.json");
         if (!configFile.exists()) {
-            return new TeleportPayConfigData();
+            TeleportPay.LOGGER.info("Config-Datei existiert nicht, erstelle Standard-Config.");
+            TeleportPayConfigData defaultConfig = new TeleportPayConfigData();
+            saveMainConfig(defaultConfig, server);
+            return defaultConfig;
         }
 
         try (FileReader reader = new FileReader(configFile)) {
+            TeleportPay.LOGGER.info("Lade Config-Datei von: " + configFile.getAbsolutePath());
             return GSON.fromJson(reader, TeleportPayConfigData.class);
         } catch (IOException e) {
-            e.printStackTrace();
+            TeleportPay.LOGGER.error("Fehler beim Laden der Config-Datei:", e);
             return new TeleportPayConfigData();
         }
     }
+
+
 
     public static void saveMainConfig(TeleportPayConfigData config, MinecraftServer server) {
         File configFile = new File(server.getServerDirectory().toFile(), "config/teleportpay/config.json");
