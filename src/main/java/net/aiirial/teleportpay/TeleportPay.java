@@ -7,8 +7,6 @@ import net.aiirial.teleportpay.command.TeleportPayConfigCommand;
 import net.aiirial.teleportpay.config.TeleportPayConfigData;
 import net.aiirial.teleportpay.util.ConfigUtil;
 import net.aiirial.teleportpay.waypoint.WaypointStorage;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
@@ -26,21 +24,8 @@ public class TeleportPay {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     private static File configDirectory;
-
     private static TeleportPayConfigData configData = new TeleportPayConfigData();
-
     private static MinecraftServer currentServer;
-
-    public static TeleportPayConfigData getConfig() {
-        return configData;
-    }
-
-    public static File getConfigDirectory() {
-        if (configDirectory == null) {
-            throw new IllegalStateException("Config directory not initialized yet");
-        }
-        return configDirectory;
-    }
 
     public TeleportPay() {
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
@@ -48,15 +33,24 @@ public class TeleportPay {
         NeoForge.EVENT_BUS.addListener(this::onServerStopped);
     }
 
-    private void onRegisterCommands(RegisterCommandsEvent event) {
-        // Wichtig: TeleportPayCommand nutzt build() um Command-Struktur zu bauen
-        event.getDispatcher().register(
-                TeleportPayCommand.register()
-        );
+    // Zugriff auf Config-Daten
+    public static TeleportPayConfigData getConfig() {
+        return configData;
+    }
 
+    // Zugriff auf das Config-Verzeichnis
+    public static File getConfigDirectory() {
+        if (configDirectory == null) {
+            throw new IllegalStateException("Config directory not initialized yet");
+        }
+        return configDirectory;
+    }
+
+    private void onRegisterCommands(RegisterCommandsEvent event) {
+        event.getDispatcher().register(TeleportPayCommand.register());
         event.getDispatcher().register(TpConfirmCommand.register());
         event.getDispatcher().register(TeleportPayConfigCommand.register());
-        LOGGER.info("TeleportPay Commands registriert.");
+        LOGGER.info("TeleportPay-Befehle registriert.");
     }
 
     private void onServerStarted(ServerStartedEvent event) {
@@ -65,17 +59,18 @@ public class TeleportPay {
 
         File serverDir = server.getServerDirectory().toFile();
         configDirectory = new File(serverDir, "config/" + MODID);
-        if (!configDirectory.exists()) {
-            configDirectory.mkdirs();
+
+        if (!configDirectory.exists() && !configDirectory.mkdirs()) {
+            LOGGER.error("Konnte Config-Verzeichnis nicht erstellen: {}", configDirectory.getAbsolutePath());
         }
 
-        // Config laden
+        // Hauptkonfiguration laden oder erstellen
         configData = ConfigUtil.loadMainConfig(server);
 
         // Waypoints laden
         WaypointStorage.load(server);
 
-        LOGGER.info("TeleportPay Konfiguration und Waypoints geladen.");
+        LOGGER.info("TeleportPay-Konfiguration und Waypoints erfolgreich geladen.");
     }
 
     private void onServerStopped(ServerStoppedEvent event) {
@@ -87,10 +82,11 @@ public class TeleportPay {
         // Waypoints speichern
         WaypointStorage.save(server);
 
-        LOGGER.info("TeleportPay Konfiguration und Waypoints gespeichert.");
         currentServer = null;
+        LOGGER.info("TeleportPay-Konfiguration und Waypoints gespeichert.");
     }
 
+    // Für manuelles Speichern
     public static void saveConfig(MinecraftServer server, TeleportPayConfigData cfg) {
         configData = cfg;
         ConfigUtil.saveMainConfig(cfg, server);
@@ -99,18 +95,22 @@ public class TeleportPay {
     public static void saveConfig() {
         if (currentServer != null) {
             saveConfig(currentServer, configData);
-            LOGGER.info("TeleportPay Konfiguration gespeichert.");
+            LOGGER.info("Konfiguration gespeichert.");
         } else {
-            LOGGER.warn("saveConfig aufgerufen, aber kein Server bekannt.");
+            LOGGER.warn("Speichern fehlgeschlagen – kein aktiver Server.");
         }
     }
 
     public static void reloadConfig(MinecraftServer server) {
         if (server != null) {
             configData = ConfigUtil.loadMainConfig(server);
-            LOGGER.info("TeleportPay-Konfiguration wurde neu geladen.");
+            LOGGER.info("Konfiguration neu geladen.");
         } else {
-            LOGGER.warn("reloadConfig ohne Server aufgerufen - Abbruch.");
+            LOGGER.warn("Neuladen fehlgeschlagen – kein aktiver Server.");
         }
+    }
+
+    public static MinecraftServer getCurrentServer() {
+        return currentServer;
     }
 }
