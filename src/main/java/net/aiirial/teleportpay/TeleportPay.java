@@ -6,12 +6,13 @@ import net.aiirial.teleportpay.command.TpConfirmCommand;
 import net.aiirial.teleportpay.command.TeleportPayConfigCommand;
 import net.aiirial.teleportpay.config.TeleportPayConfigData;
 import net.aiirial.teleportpay.util.ConfigUtil;
-import net.aiirial.teleportpay.waypoint.WaypointStorage;
+import net.aiirial.teleportpay.waypoint.WaypointManager;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import org.slf4j.Logger;
 
@@ -30,15 +31,14 @@ public class TeleportPay {
     public TeleportPay() {
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
+        NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         NeoForge.EVENT_BUS.addListener(this::onServerStopped);
     }
 
-    // Zugriff auf Config-Daten
     public static TeleportPayConfigData getConfig() {
         return configData;
     }
 
-    // Zugriff auf das Config-Verzeichnis
     public static File getConfigDirectory() {
         if (configDirectory == null) {
             throw new IllegalStateException("Config directory not initialized yet");
@@ -64,29 +64,27 @@ public class TeleportPay {
             LOGGER.error("Konnte Config-Verzeichnis nicht erstellen: {}", configDirectory.getAbsolutePath());
         }
 
-        // Hauptkonfiguration laden oder erstellen
         configData = ConfigUtil.loadMainConfig(server);
-
-        // Waypoints laden
-        WaypointStorage.load(server);
+        WaypointManager.loadAll(server);
 
         LOGGER.info("TeleportPay-Konfiguration und Waypoints erfolgreich geladen.");
     }
 
-    private void onServerStopped(ServerStoppedEvent event) {
+    private void onServerStopping(ServerStoppingEvent event) {
         MinecraftServer server = event.getServer();
 
-        // Config speichern
+        // Vorzeitiges Speichern beim Stoppen
         ConfigUtil.saveMainConfig(configData, server);
+        WaypointManager.save(server);
 
-        // Waypoints speichern
-        WaypointStorage.save(server);
-
-        currentServer = null;
-        LOGGER.info("TeleportPay-Konfiguration und Waypoints gespeichert.");
+        LOGGER.info("TeleportPay: Konfiguration und Waypoints bei ServerStopping gespeichert.");
     }
 
-    // Für manuelles Speichern
+    private void onServerStopped(ServerStoppedEvent event) {
+        currentServer = null;
+        LOGGER.info("TeleportPay: Server vollständig gestoppt.");
+    }
+
     public static void saveConfig(MinecraftServer server, TeleportPayConfigData cfg) {
         configData = cfg;
         ConfigUtil.saveMainConfig(cfg, server);
