@@ -55,8 +55,8 @@ public class TeleportPayCommand {
                                                 return 0;
                                             }
 
-                                            // 📌 Hier speichern
-                                            net.aiirial.teleportpay.waypoint.WaypointManager.save(player.server);
+                                            // Speichern
+                                            WaypointManager.save(player.server);
 
                                             player.sendSystemMessage(Component.literal("§aWegpunkt §b" + name + " §agesetzt."));
                                             return 1;
@@ -72,8 +72,8 @@ public class TeleportPayCommand {
 
                                             boolean removed = WaypointManager.removeWaypoint(player, name);
                                             if (removed) {
-                                                // 📌 Hier speichern
-                                                net.aiirial.teleportpay.waypoint.WaypointManager.save(player.server);
+                                                // Speichern
+                                                WaypointManager.save(player.server);
 
                                                 player.sendSystemMessage(Component.literal("§aWegpunkt §b" + name + " §aentfernt."));
                                                 return 1;
@@ -100,7 +100,7 @@ public class TeleportPayCommand {
                                     }
                                     return 1;
                                 }))
-                        // Teleport zu einem Wegpunkt
+                        // Teleport zu einem Wegpunkt (ohne sichere Koordinate suchen, direkte Position)
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .executes(ctx -> {
                                     ServerPlayer player = ctx.getSource().getPlayerOrException();
@@ -182,14 +182,18 @@ public class TeleportPayCommand {
                                         return 1;
                                     }
 
-                                    // Direkter Teleport ohne Bestätigung
-                                    return executeTeleportCrossDim(player, targetLevel, new Vec3(wp.x, wp.y, wp.z),
-                                            paymentItem,
-                                            cost,
-                                            cooldown,
-                                            tier);
-                                })));
+                                    // Direkter Teleport: ACHTUNG! Hier direkt teleportieren, keine sichere Position suchen
+                                    if (!player.getAbilities().instabuild) {
+                                        removeItems(player, paymentItem, cost);
+                                    }
 
+                                    player.teleportTo(targetLevel, wp.x + 0.5, wp.y, wp.z + 0.5, player.getYRot(), player.getXRot());
+
+                                    getCooldownMap(tier).put(uuid, now);
+
+                                    player.sendSystemMessage(Component.literal("§aTeleportiert für §b" + cost + " §a" + paymentItem.getDescription().getString()));
+                                    return 1;
+                                })));
     }
 
     // Cooldown Maps pro Tier
