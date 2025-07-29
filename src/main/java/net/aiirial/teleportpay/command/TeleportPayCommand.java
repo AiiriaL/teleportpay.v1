@@ -55,9 +55,13 @@ public class TeleportPayCommand {
                                                 return 0;
                                             }
 
+                                            // 📌 Hier speichern
+                                            net.aiirial.teleportpay.waypoint.WaypointManager.save(player.server);
+
                                             player.sendSystemMessage(Component.literal("§aWegpunkt §b" + name + " §agesetzt."));
                                             return 1;
                                         }))))
+
                 // Wegpunkt löschen
                 .then(Commands.literal("delete")
                         .then(Commands.literal("waypoint")
@@ -68,6 +72,9 @@ public class TeleportPayCommand {
 
                                             boolean removed = WaypointManager.removeWaypoint(player, name);
                                             if (removed) {
+                                                // 📌 Hier speichern
+                                                net.aiirial.teleportpay.waypoint.WaypointManager.save(player.server);
+
                                                 player.sendSystemMessage(Component.literal("§aWegpunkt §b" + name + " §aentfernt."));
                                                 return 1;
                                             } else {
@@ -75,6 +82,7 @@ public class TeleportPayCommand {
                                                 return 0;
                                             }
                                         }))))
+
                 // Wegpunkt-Liste und Teleport zu Wegpunkt
                 .then(Commands.literal("waypoint")
                         // Liste aller Wegpunkte anzeigen
