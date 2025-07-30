@@ -83,7 +83,7 @@ public class TeleportPayCommand {
                                             }
                                         }))))
 
-                // Wegpunkt-Liste und Teleport zu Wegpunkt
+// Wegpunkt-Liste und Teleport zu Wegpunkt
                 .then(Commands.literal("waypoint")
                         // Liste aller Wegpunkte anzeigen
                         .then(Commands.literal("list")
@@ -147,7 +147,7 @@ public class TeleportPayCommand {
                                         cooldownMap = lastUsedTier3;
                                     }
 
-                                    // Prüfe Cooldown
+                                    // Cooldown prüfen
                                     UUID uuid = player.getUUID();
                                     long now = System.currentTimeMillis();
                                     if (cooldownMap.containsKey(uuid) && now - cooldownMap.get(uuid) < cooldown * 1000L) {
@@ -169,21 +169,31 @@ public class TeleportPayCommand {
                                         return 0;
                                     }
 
-                                    // Bestätigung bei confirmTeleport und Tier >= 2
                                     if (cfg.confirmTeleport && tier >= 2) {
-                                        pendingTeleport.put(uuid, new PendingTeleportData(
+                                        // Confirmation aktiv → Daten zwischenspeichern für tpconfirm
+                                        pendingTeleport.put(player.getUUID(), new PendingTeleportData(
                                                 new Vec3(wp.x, wp.y, wp.z),
-                                                targetLevel.dimension().location(),
+                                                wp.getDimensionKey().location(),
                                                 cost,
                                                 cooldown,
                                                 paymentItem,
-                                                tier));
+                                                tier
+                                        ));
                                         player.sendSystemMessage(Component.literal("§eBitte bestätige mit §b/tpconfirm§e – Kosten: §b" + cost + " §e" + paymentItem.getDescription().getString()));
                                         return 1;
-                                    }
+                                    } else {
+                                        // Direktteleport ohne Sicherheitsprüfung
+                                        if (!player.getAbilities().instabuild) {
+                                            removeItems(player, paymentItem, cost);
+                                        }
 
-                                    // Direkter Teleport mit sicherer Position (SafeCheck)
-                                    return executeTeleportCrossDim(player, targetLevel, new Vec3(wp.x, wp.y, wp.z), paymentItem, cost, cooldown, tier);
+                                        player.teleportTo(targetLevel, wp.x + 0.5, wp.y, wp.z + 0.5, player.getYRot(), player.getXRot());
+
+                                        cooldownMap.put(player.getUUID(), System.currentTimeMillis());
+
+                                        player.sendSystemMessage(Component.literal("§aTeleportiert zu §b" + name + " §afür §b" + cost + " §a" + paymentItem.getDescription().getString()));
+                                        return 1;
+                                    }
                                 })));
 
     }
