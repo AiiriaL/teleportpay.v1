@@ -1,3 +1,4 @@
+// TeleportPay.java
 package net.aiirial.teleportpay;
 
 import com.mojang.logging.LogUtils;
@@ -57,15 +58,16 @@ public class TeleportPay {
         MinecraftServer server = event.getServer();
         currentServer = server;
 
-        File serverDir = server.getServerDirectory().toFile();
-        configDirectory = new File(serverDir, "config/" + MODID);
+        // Nur <server-root>/config/teleportpay
+        File baseConfigDir = new File(server.getServerDirectory().toFile(), "config");
+        configDirectory = new File(baseConfigDir, MODID);
 
         if (!configDirectory.exists() && !configDirectory.mkdirs()) {
             LOGGER.error("Konnte Config-Verzeichnis nicht erstellen: {}", configDirectory.getAbsolutePath());
         }
 
         configData = ConfigUtil.loadMainConfig(server);
-        WaypointManager.loadAll(server);
+        WaypointManager.load(server);
 
         LOGGER.info("TeleportPay-Konfiguration und Waypoints erfolgreich geladen.");
     }
@@ -73,7 +75,6 @@ public class TeleportPay {
     private void onServerStopping(ServerStoppingEvent event) {
         MinecraftServer server = event.getServer();
 
-        // Vorzeitiges Speichern beim Stoppen
         ConfigUtil.saveMainConfig(configData, server);
         WaypointManager.save(server);
 

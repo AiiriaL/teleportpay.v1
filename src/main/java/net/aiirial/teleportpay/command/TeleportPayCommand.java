@@ -100,7 +100,7 @@ public class TeleportPayCommand {
                                     }
                                     return 1;
                                 }))
-                        // Teleport zu einem Wegpunkt (ohne sichere Koordinate suchen, direkte Position)
+                        // Teleport zu einem Wegpunkt
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .executes(ctx -> {
                                     ServerPlayer player = ctx.getSource().getPlayerOrException();
@@ -182,18 +182,10 @@ public class TeleportPayCommand {
                                         return 1;
                                     }
 
-                                    // Direkter Teleport: ACHTUNG! Hier direkt teleportieren, keine sichere Position suchen
-                                    if (!player.getAbilities().instabuild) {
-                                        removeItems(player, paymentItem, cost);
-                                    }
-
-                                    player.teleportTo(targetLevel, wp.x + 0.5, wp.y, wp.z + 0.5, player.getYRot(), player.getXRot());
-
-                                    getCooldownMap(tier).put(uuid, now);
-
-                                    player.sendSystemMessage(Component.literal("§aTeleportiert für §b" + cost + " §a" + paymentItem.getDescription().getString()));
-                                    return 1;
+                                    // Direkter Teleport mit sicherer Position (SafeCheck)
+                                    return executeTeleportCrossDim(player, targetLevel, new Vec3(wp.x, wp.y, wp.z), paymentItem, cost, cooldown, tier);
                                 })));
+
     }
 
     // Cooldown Maps pro Tier
@@ -313,6 +305,19 @@ public class TeleportPayCommand {
         }
 
         player.teleportTo(targetLevel, safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, player.getYRot(), player.getXRot());
+
+        getCooldownMap(tier).put(player.getUUID(), System.currentTimeMillis());
+
+        player.sendSystemMessage(Component.literal("§aTeleportiert für §b" + cost + " §a" + paymentItem.getDescription().getString()));
+        return 1;
+    }
+
+    public static int executeTeleportCrossDimConfirmed(ServerPlayer player, ServerLevel targetLevel, Vec3 target, Item paymentItem, int cost, int cooldown, int tier) {
+        if (!player.getAbilities().instabuild) {
+            removeItems(player, paymentItem, cost);
+        }
+
+        player.teleportTo(targetLevel, target.x + 0.5, target.y, target.z + 0.5, player.getYRot(), player.getXRot());
 
         getCooldownMap(tier).put(player.getUUID(), System.currentTimeMillis());
 
